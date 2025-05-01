@@ -11,7 +11,7 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 
 // Scene
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xade0ff, 40, 150); // Add subtle fog matching sky gradient
+scene.fog = new THREE.Fog(0xf5b9c6, 10, 250); // Add subtle fog matching sky gradient
 
 // Add visual debugging aids // REMOVED
 // const axesHelper = new THREE.AxesHelper(10); // RGB corresponds to XYZ // REMOVED
@@ -21,7 +21,7 @@ scene.fog = new THREE.Fog(0xade0ff, 40, 150); // Add subtle fog matching sky gra
 // scene.add(gridHelper); // REMOVED
 
 // Camera
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 400);
 camera.position.set(-10, 2, 10); // Adjusted position: closer, slightly lower
 camera.lookAt(-11, 2, 4); // Adjusted lookAt: focus slightly higher on the tree area
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'; // ADDED for OBJ loading
-import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; // ADDED for MTL loading
-// import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; // REMOVED
+// import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'; // REMOVED
+// import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; // REMOVED
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; // ADDED for GLB loading
 
 // Scene
 const scene = new THREE.Scene();
@@ -16,8 +16,8 @@ scene.fog = new THREE.Fog(0xade0ff, 10, 80); // Add subtle fog matching sky grad
 
 // Camera
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(-8, 4, 12); // Adjusted position: closer, slightly lower
-camera.lookAt(-15, 2, 4); // Adjusted lookAt: focus slightly higher on the tree area
+camera.position.set(-10, 2, 10); // Adjusted position: closer, slightly lower
+camera.lookAt(-11, 2, 4); // Adjusted lookAt: focus slightly higher on the tree area
 
 // Renderer
 const canvas = document.querySelector('#threeCanvas');
@@ -143,128 +143,39 @@ sunMesh.position.copy(dirLight.position).normalize().multiplyScalar(100); // Pla
 scene.add(sunMesh);
 
 
-// --- Tree Model Loading ---
-const mtlLoader = new MTLLoader();
-mtlLoader.setPath('/models/'); 
+// --- Tree Model Loading --- // CHANGED to GLTF/GLB Loading
 
-// Fallback function to create a simple tree if model loading fails
-function createSimpleTree() {
-    console.log("Creating fallback tree");
-    const treeGroup = new THREE.Group();
-    
-    // Trunk
-    const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.8, 5, 8);
-    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
-    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.position.y = 2.5;
-    trunk.castShadow = true;
-    trunk.receiveShadow = true;
-    treeGroup.add(trunk);
-    
-    // Leaves/Blossoms (several spheres arranged in a tree shape)
-    const blossomMaterial = new THREE.MeshStandardMaterial({ color: 0xFFB7C5, roughness: 0.7 });
-    
-    // Different sizes and positions for the foliage
-    const blossomPositions = [
-        { x: 0, y: 5.5, z: 0, r: 2.5 },
-        { x: 1.5, y: 4.5, z: 0, r: 1.8 },
-        { x: -1.5, y: 4.5, z: 0, r: 1.8 },
-        { x: 0, y: 4.5, z: 1.5, r: 1.8 },
-        { x: 0, y: 4.5, z: -1.5, r: 1.8 },
-        { x: 2, y: 3, z: 0, r: 1.5 },
-        { x: -2, y: 3, z: 0, r: 1.5 },
-        { x: 0, y: 3, z: 2, r: 1.5 },
-        { x: 0, y: 3, z: -2, r: 1.5 }
-    ];
-    
-    blossomPositions.forEach(pos => {
-        const blossomGeometry = new THREE.SphereGeometry(pos.r, 16, 16);
-        const blossom = new THREE.Mesh(blossomGeometry, blossomMaterial);
-        blossom.position.set(pos.x, pos.y, pos.z);
-        blossom.castShadow = true;
-        blossom.receiveShadow = true;
-        treeGroup.add(blossom);
-    });
-    
-    treeGroup.position.set(-15, 0, 4); // Set base Y to ground level (0)
-    // REMOVED Raycasting for simple tree Y position, assuming flat ground at y=0
-    // const raycaster = new THREE.Raycaster();
-    // raycaster.set(new THREE.Vector3(treeGroup.position.x, 10, treeGroup.position.z), new THREE.Vector3(0, -1, 0));
-    // const intersects = raycaster.intersectObject(ground);
-    // if (intersects.length > 0) {
-    //     treeGroup.position.y = intersects[0].point.y;
-    // }
+// Fallback function to create a simple tree if model loading fails // REMOVED
+// function createSimpleTree() { ... } // REMOVED
 
-    scene.add(treeGroup);
-    return treeGroup;
-}
-
-// Try to load the tree model, with better error handling
+// Try to load the GLB tree model
 try {
-    mtlLoader.setMaterialOptions({ 
-        ignoreZeroRGBs: true, // Helps with some MTL issues
-        side: THREE.DoubleSide // Allow materials to be visible from both sides
+    const loader = new GLTFLoader();
+    loader.setPath('/models/'); // Set path for GLTF loader
+    
+    loader.load('cherry_blossom_tree_1.glb', function (gltf) {
+        console.log("GLB tree model loaded successfully");
+        const treeModel = gltf.scene;
+        setupTree(treeModel);
+        
+    }, function (xhr) {
+        // Progress callback (optional)
+        if (xhr.lengthComputable) {
+            const percentComplete = xhr.loaded / xhr.total * 100;
+            console.log('Model ' + Math.round(percentComplete, 2) + '% downloaded');
+        }
+    }, function (error) {
+        // Error callback
+        console.error('An error happened loading the GLB model:', error);
+        // No fallback tree - log the error only.
     });
 
-    mtlLoader.load('Tree 1.mtl', function(materials) {
-        materials.preload();
-        console.log("MTL loaded successfully");
-        
-        const objLoader = new OBJLoader();
-        objLoader.setMaterials(materials);
-        objLoader.setPath('/models/');
-        
-        objLoader.load('Tree 1.obj', function(object) {
-            console.log("Tree model loaded with MTL");
-            setupTree(object);
-        }, onProgress, function(error) {
-            console.error("Error loading OBJ file:", error);
-            createSimpleTree();
-        });
-    }, function(error) {
-        console.log("MTL loading failed, trying OBJ directly:", error);
-        const objLoader = new OBJLoader();
-        objLoader.setPath('/models/');
-        objLoader.load('Tree 1.obj', function(object) {
-            console.log("Tree model loaded (OBJ only)");
-            // Apply custom materials for a cherry blossom tree
-            object.traverse(function(child) {
-                if (child.isMesh) {
-                    // Detect parts of the tree by geometry or name
-                    const isLeaf = child.name.toLowerCase().includes('leaf') || 
-                                child.name.toLowerCase().includes('blossom') ||
-                                child.geometry.attributes.position.count > 1000; // Leaves often have more vertices
-                    
-                    if (isLeaf) {
-                        // Pink blossom color for leaves
-                        child.material = new THREE.MeshStandardMaterial({ 
-                            color: 0xFFB7C5, // Light pink for cherry blossoms
-                            roughness: 0.8,
-                            metalness: 0.0
-                        });
-                    } else {
-                        // Brown bark color for trunk/branches
-                        child.material = new THREE.MeshStandardMaterial({ 
-                            color: 0x8B4513, // Brown for trunk
-                            roughness: 0.9,
-                            metalness: 0.0
-                        });
-                    }
-                }
-            });
-            setupTree(object);
-        }, onProgress, function(error) {
-            console.error("Failed to load both MTL and OBJ:", error);
-            createSimpleTree();
-        });
-    });
 } catch (e) {
-    console.error("Exception during tree loading:", e);
-    createSimpleTree();
+    console.error("Exception during GLB tree loading:", e);
 }
 
 function setupTree(treeObject) {
-    treeObject.scale.set(2.5, 2.5, 2.5);
+    treeObject.scale.set(2, 2, 2);
     treeObject.position.set(-15, 0, 4); // Place tree base at y=0
 
     // Find the ground height at the tree's X/Z position // REMOVED - assuming flat ground at y=0

@@ -21,7 +21,7 @@ canvas {
     top: 85%; /* Lower on the screen */
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #ff1493; /* Deep Pink */
+    color: #ff1d4e; /* Deep Pink */
     font-size: 4vw; /* Responsive font size */
     font-family: 'Arial', sans-serif;
     font-weight: bold;
@@ -30,6 +30,20 @@ canvas {
     transition: opacity 1s ease-in-out;
     pointer-events: none;
     z-index: 10;
+    animation: pulse 4s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.8;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        color: #ff1d4e;
+    }
+    50% {
+        opacity: 1;
+        text-shadow: 2px 2px 8px rgba(0, 0, 0, 1);
+        color: #ff1d28;
+    }
 }
 
 #instructions {

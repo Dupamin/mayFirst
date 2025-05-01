@@ -3,10 +3,15 @@ import * as THREE from 'three';
 // import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; // REMOVED
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; // ADDED for GLB loading
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'; // ADDED for controls
+// Post-processing imports - ADDED
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js'; 
 
 // Scene
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xade0ff, 10, 80); // Add subtle fog matching sky gradient
+scene.fog = new THREE.Fog(0xade0ff, 40, 150); // Add subtle fog matching sky gradient
 
 // Add visual debugging aids // REMOVED
 // const axesHelper = new THREE.AxesHelper(10); // RGB corresponds to XYZ // REMOVED
@@ -33,7 +38,7 @@ const renderer = new THREE.WebGLRenderer({
     alpha: false // Changed to false to ensure background color
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x87CEEB, 1); // Set explicit background color
+renderer.setClearColor(0x6495ED, 1); // Changed clear color to darker blue (CornflowerBlue)
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
 
@@ -49,11 +54,11 @@ window.addEventListener('resize', () => {
 });
 
 // --- Lighting ---
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2); // Slightly less intense
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0xFFB7C5, 1); // Light cherry blossom pink ground reflection
 hemiLight.position.set(0, 20, 0);
 scene.add(hemiLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); // Keep intensity for now
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); // Reduced intensity for softer light
 dirLight.position.set(10, 20, 15); // Adjusted sun position slightly
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.width = 2048;
@@ -108,15 +113,55 @@ document.addEventListener('keyup', (event) => {
 let elementsAdded = false; // Still useful if we add other timed events
 const clock = new THREE.Clock();
 let clouds = []; // Array to hold cloud meshes
+let fallenPetals = []; // ADDED: Array for animating petals
+let simpleFlowers = []; // ADDED: Array for flowers
+let bushes = []; // ADDED: Array for bushes
 
 // Get reference to HTML message element // REMOVED
 // const messageElement = document.getElementById('message');
 
-// Animation Loop
+// --- Post Processing Setup --- ADDED Section
+let composer, bloomPass, bokehPass;
+composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+
+// Bloom Pass (for glow)
+bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 
+    0.35, // strength - REDUCED significantly
+    0.4, // radius - Increased slightly for softer spread
+    0.8  // threshold - INCREASED so only brighter parts bloom
+);
+composer.addPass(bloomPass);
+
+// Bokeh Pass (Depth of Field)
+bokehPass = new BokehPass(scene, camera, {
+    focus: 20.0,     // Initial focus distance (adjust based on tree distance)
+    aperture: 0.0001, // Aperture size (controls blur intensity)
+    maxblur: 0.005,  // Max blur amount
+    width: window.innerWidth,
+    height: window.innerHeight
+});
+bokehPass.needsSwap = true; // Important for chaining passes
+bokehPass.enabled = false;  // DISABLED DOF
+composer.addPass(bokehPass);
+
+// Adjust composer size on resize
+window.addEventListener('resize', () => {
+    // ... existing camera/renderer resize ...
+    composer.setSize(window.innerWidth, window.innerHeight); 
+    // Update bloom pass resolution if needed
+    bloomPass.resolution.set(window.innerWidth, window.innerHeight);
+    // Update bokeh pass aspect
+    bokehPass.uniforms['aspect'].value = camera.aspect;
+});
+// --- End Post Processing Setup ---
+
+// --- Animation Loop
 function animate() {
     requestAnimationFrame(animate);
     const deltaTime = clock.getDelta();
-    // const elapsedTime = clock.elapsedTime; // No longer used
+    const elapsedTime = clock.getElapsedTime(); // Need elapsed time for animations
 
     // --- Movement Logic --- CORRECTED Section
     if (controls.isLocked === true) {
@@ -146,18 +191,29 @@ function animate() {
 
     // Animate Clouds
     clouds.forEach(cloud => {
-        cloud.position.x += deltaTime * 0.5; // Adjust speed as needed
+        cloud.position.x += deltaTime * 0.3; // SLOWED DOWN cloud speed
         // Wrap clouds around
-        if (cloud.position.x > 100) {
-             cloud.position.x = -100;
+        if (cloud.position.x > 120) { // Adjusted wrap boundary
+             cloud.position.x = -120;
              // Optionally randomize Y and Z again for variation
-             cloud.position.y = 15 + Math.random() * 10;
-             cloud.position.z = -50 + Math.random() * 100;
+             cloud.position.y = 25 + Math.random() * 15;
+             cloud.position.z = -60 + Math.random() * 120; // Wider spread
+             // Subtle opacity change on wrap?
+             // cloud.material.opacity = 0.7 + Math.random() * 0.2;
         }
     });
+    
+    // --- Animate Fallen Petals --- ADDED
+    fallenPetals.forEach(petal => {
+        // Gentle rotation
+        petal.rotation.z += Math.sin(elapsedTime * 0.5 + petal.position.x) * 0.005;
+        // Subtle opacity pulsing (optional)
+        // petal.material.opacity = 0.8 + Math.sin(elapsedTime + petal.position.z) * 0.1;
+    });
+    // --- End Petal Animation ---
 
-
-    renderer.render(scene, camera);
+    // renderer.render(scene, camera); // REMOVED - Composer handles rendering
+    composer.render(deltaTime); // Use EffectComposer to render
 }
 
 // --- Scene Elements ---
@@ -247,20 +303,20 @@ function setupTree(treeObject) {
     
     scene.add(treeObject);
 
-    // --- Add Fallen Petals --- ADDED
-    const petalCount = 200;
-    const petalSpreadRadius = 6; // How far petals spread from the trunk
-    const petalGeometry = new THREE.PlaneGeometry(0.1, 0.1); // Small plane for petal
+    // --- Add Fallen Petals --- MODIFIED to add to array
+    const petalCount = 500; // Slightly more petals
+    const petalSpreadRadius = 14; 
+    const petalGeometry = new THREE.PlaneGeometry(0.1, 0.1); 
     const petalMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xFFB6C1, // LightPink 
+        color: 0xFFB6C1, 
         side: THREE.DoubleSide,
-        transparent: true, // Make slightly transparent if desired
-        opacity: 0.9
+        transparent: true, 
+        opacity: 0.85 // Base opacity
     });
 
+    fallenPetals = []; // Clear previous petals if re-loading
     for (let i = 0; i < petalCount; i++) {
-        const petal = new THREE.Mesh(petalGeometry, petalMaterial);
-
+        const petal = new THREE.Mesh(petalGeometry, petalMaterial.clone()); // Clone material for unique opacity/anim
         // Random position around the tree base
         const angle = Math.random() * Math.PI * 2;
         const radius = Math.random() * petalSpreadRadius;
@@ -277,10 +333,13 @@ function setupTree(treeObject) {
         
         petal.receiveShadow = true; // Petals can receive shadows (optional)
         scene.add(petal);
+        fallenPetals.push(petal); // ADDED: Add to array for animation
     }
     // --- End Fallen Petals ---
-
-    // REMOVED: camera.lookAt(treeObject.position); -- we're setting this at the start now
+    
+    // Update DOF focus to the tree
+    bokehPass.uniforms[ 'focus' ].value = camera.position.distanceTo(treeObject.position) * 0.9;
+    // console.log("DOF Focus updated to:", bokehPass.uniforms[ 'focus' ].value); 
 }
 
 const onProgress = function (xhr) {
@@ -294,6 +353,58 @@ const onError = function (error) {
      console.error('An error happened loading the model:', error);
 };
 
+// --- Flowers --- ADDED Section
+const flowerCount = 50;
+const flowerSpread = 80; // How far flowers spread across the ground
+const flowerGeometry = new THREE.SphereGeometry(0.15, 8, 6); // Simple low-poly sphere
+const flowerColors = [0xFFFF00, 0xFFFFFF, 0xADD8E6]; // Yellow, White, Light Blue
+
+for (let i = 0; i < flowerCount; i++) {
+    const flowerMaterial = new THREE.MeshStandardMaterial({
+        color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+        roughness: 0.7
+    });
+    const flower = new THREE.Mesh(flowerGeometry, flowerMaterial);
+
+    // Random position, avoiding near the tree base slightly
+    let flowerX, flowerZ;
+    do {
+        flowerX = (Math.random() - 0.5) * flowerSpread;
+        flowerZ = (Math.random() - 0.5) * flowerSpread;
+    } while (Math.sqrt((flowerX - (-15))**2 + (flowerZ - 4)**2) < 8); // Keep away from petal area
+    
+    const flowerY = 0.1;
+    flower.position.set(flowerX, flowerY, flowerZ);
+    flower.castShadow = true;
+    scene.add(flower);
+    simpleFlowers.push(flower);
+}
+// --- End Flowers ---
+
+// --- Bushes --- ADDED Section
+const bushCount = 10;
+const bushSpread = 90;
+const bushBaseGeometry = new THREE.SphereGeometry(0.8, 12, 8);
+const bushMaterial = new THREE.MeshStandardMaterial({ color: 0x2E8B57, roughness: 0.9 }); // SeaGreen
+
+for (let i = 0; i < bushCount; i++) {
+    const bush = new THREE.Mesh(bushBaseGeometry, bushMaterial);
+    let bushX, bushZ;
+    do {
+        bushX = (Math.random() - 0.5) * bushSpread;
+        bushZ = (Math.random() - 0.5) * bushSpread;
+    } while (Math.sqrt((bushX - (-15))**2 + (bushZ - 4)**2) < 10); // Keep away from tree/petals
+
+    const bushY = 0.5;
+    bush.position.set(bushX, bushY, bushZ);
+    bush.scale.set(1, 0.8 + Math.random() * 0.4, 1); // Vary height slightly
+    bush.castShadow = true;
+    bush.receiveShadow = true;
+    scene.add(bush);
+    bushes.push(bush);
+}
+// --- End Bushes ---
+
 // --- Clouds ---
 // Load cloud texture from file
 const cloudTexture = textureLoader.load('/textures/cloud.png');
@@ -305,13 +416,13 @@ const cloudMaterial = new THREE.MeshBasicMaterial({
     side: THREE.DoubleSide
 });
 
-const numClouds = 35; // INCREASED number of clouds
+const numClouds = 45; // INCREASED number of clouds further
 for (let i = 0; i < numClouds; i++) {
     const cloudGeometry = new THREE.PlaneGeometry(10 + Math.random() * 10, 5 + Math.random() * 5); // Random size
     const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
 
     cloud.position.x = -100 + Math.random() * 200; // Spread across X
-    cloud.position.y = 25 + Math.random() * 15;  // RAISED height variation (25-40)
+    cloud.position.y = 28 + Math.random() * 15;  // RAISED height variation further (28-43)
     cloud.position.z = -50 + Math.random() * 100; // Depth variation
 
     cloud.rotation.y = Math.random() * Math.PI; // Slight random rotation

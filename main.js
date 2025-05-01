@@ -2,6 +2,7 @@ import * as THREE from 'three';
 // import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'; // REMOVED
 // import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; // REMOVED
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; // ADDED for GLB loading
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'; // ADDED for controls
 
 // Scene
 const scene = new THREE.Scene();
@@ -66,6 +67,40 @@ dirLight.shadow.camera.near = 0.1;
 dirLight.shadow.camera.far = 60;
 scene.add(dirLight);
 
+// --- Controls --- ADDED Section
+const instructions = document.getElementById('instructions');
+const controls = new PointerLockControls(camera, renderer.domElement);
+
+// Lock pointer on click
+instructions.addEventListener('click', function () {
+    controls.lock();
+});
+
+controls.addEventListener('lock', function () {
+    instructions.style.display = 'none';
+});
+
+controls.addEventListener('unlock', function () {
+    instructions.style.display = 'flex'; // Use flex to re-center
+});
+
+// Add controls to the scene (needed for some internal logic)
+scene.add(controls.getObject());
+
+// Keyboard state
+const keyboard = {};
+const moveSpeed = 5.0; // Units per second
+const moveDirection = new THREE.Vector3(); // Reusable vector for movement direction
+
+// Keyboard event listeners
+document.addEventListener('keydown', (event) => {
+    keyboard[event.code] = true;
+});
+document.addEventListener('keyup', (event) => {
+    keyboard[event.code] = false;
+});
+// --- End Controls Section ---
+
 // --- Animation Variables ---
 // let bouquetArrived = false; // REMOVED
 // const bouquetSpeed = 0.08; // REMOVED
@@ -81,16 +116,33 @@ let clouds = []; // Array to hold cloud meshes
 function animate() {
     requestAnimationFrame(animate);
     const deltaTime = clock.getDelta();
-    const elapsedTime = clock.elapsedTime;
+    // const elapsedTime = clock.elapsedTime; // No longer used
 
-    // Animate Bouquet // REMOVED section
-    // if (!bouquetArrived) { ... }
+    // --- Movement Logic --- CORRECTED Section
+    if (controls.isLocked === true) {
+        const moveDistance = moveSpeed * deltaTime; // Calculate distance to move based on speed and time
 
-    // Show HTML text once bouquet arrived // REMOVED section
-    // if (bouquetArrived && !elementsAdded) { ... }
+        // Reset movement flags or apply movement directly
+        if (keyboard['KeyW']) {
+            controls.moveForward(moveDistance);
+        }
+        if (keyboard['KeyS']) {
+            controls.moveForward(-moveDistance);
+        }
+        if (keyboard['KeyA']) {
+            controls.moveRight(-moveDistance);
+        }
+        if (keyboard['KeyD']) {
+            controls.moveRight(moveDistance);
+        }
+        
+        // Prevent moving below ground (simple clamping)
+        if (controls.getObject().position.y < 1.0) {
+             controls.getObject().position.y = 1.0; // Set minimum height (e.g., head height)
+        }
 
-    // Gentle hover for arrived bouquet // REMOVED section
-    // if (bouquetArrived && bouquet) { ... }
+    }
+    // --- End Movement Logic ---
 
     // Animate Clouds
     clouds.forEach(cloud => {

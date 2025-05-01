@@ -3,6 +3,7 @@ import * as THREE from 'three';
 // import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; // REMOVED
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; // ADDED for GLB loading
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'; // ADDED for controls
+import { CubeTextureLoader } from 'three'; // ADDED for Skybox
 // Post-processing imports - ADDED
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -11,7 +12,7 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 
 // Scene
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xf5b9c6, 10, 250); // Add subtle fog matching sky gradient
+scene.fog = new THREE.Fog(0xf5b9c6, 10, 250); // REMOVED - Replaced by skydome
 
 // Add visual debugging aids // REMOVED
 // const axesHelper = new THREE.AxesHelper(10); // RGB corresponds to XYZ // REMOVED
@@ -21,7 +22,7 @@ scene.fog = new THREE.Fog(0xf5b9c6, 10, 250); // Add subtle fog matching sky gra
 // scene.add(gridHelper); // REMOVED
 
 // Camera
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 400);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(-10, 2, 10); // Adjusted position: closer, slightly lower
 camera.lookAt(-11, 2, 4); // Adjusted lookAt: focus slightly higher on the tree area
 
@@ -38,7 +39,7 @@ const renderer = new THREE.WebGLRenderer({
     alpha: false // Changed to false to ensure background color
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x6495ED, 1); // Changed clear color to darker blue (CornflowerBlue)
+renderer.setClearColor(0x6495ED, 1); // REINSTATED clear color
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
 
@@ -221,9 +222,27 @@ function animate() {
 // --- Scene Elements ---
 
 // Texture Loader
-const textureLoader = new THREE.TextureLoader();
+// const textureLoader = new THREE.TextureLoader(); // Can keep if other textures need it, but CubeTextureLoader is separate
+
+// --- Skybox --- ADDED Section (using CubeTextureLoader)
+const cubeTextureLoader = new THREE.CubeTextureLoader();
+cubeTextureLoader.setPath('/textures/'); // Set base path
+
+const skyboxTexture = cubeTextureLoader.load([
+    'right.jpg', // Positive X
+    'left.jpg',  // Negative X
+    'top.jpg',   // Positive Y
+    'bottom.jpg',// Negative Y
+    'front.jpg', // Positive Z
+    'back.jpg'   // Negative Z
+]);
+skyboxTexture.encoding = THREE.sRGBEncoding; // Set encoding for CubeTexture
+
+scene.background = skyboxTexture; // Assign CubeTexture to background
+// --- End Skybox ---
 
 // Ground (Grass) with Hills // CHANGED to flat ground
+const textureLoader = new THREE.TextureLoader(); // Keep for grass texture
 const groundSize = 200;
 // const groundSegments = 100; // REMOVED - not needed for flat plane
 const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize); // SIMPLIFIED - flat plane

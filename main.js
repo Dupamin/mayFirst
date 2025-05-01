@@ -85,7 +85,7 @@ controls.addEventListener('unlock', function () {
 });
 
 // Add controls to the scene (needed for some internal logic)
-scene.add(controls.getObject());
+scene.add(controls.object);
 
 // Keyboard state
 const keyboard = {};
@@ -137,8 +137,8 @@ function animate() {
         }
         
         // Prevent moving below ground (simple clamping)
-        if (controls.getObject().position.y < 1.0) {
-             controls.getObject().position.y = 1.0; // Set minimum height (e.g., head height)
+        if (controls.object.position.y < 1.0) {
+             controls.object.position.y = 1.0; // Set minimum height (e.g., head height)
         }
 
     }
@@ -174,12 +174,12 @@ const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize); // SIMPL
 const grassTexture = textureLoader.load('/textures/grass.jpg');
 grassTexture.wrapS = THREE.RepeatWrapping;
 grassTexture.wrapT = THREE.RepeatWrapping;
-grassTexture.repeat.set(20, 20);
+grassTexture.repeat.set(15, 15); // Slightly less repetition
 
 const groundMaterial = new THREE.MeshStandardMaterial({
     map: grassTexture,
-    roughness: 0.9,
-    metalness: 0.1
+    roughness: 0.8, // Slightly less rough
+    metalness: 0.05 // Very low metalness
 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.rotation.x = -Math.PI / 2;
@@ -188,8 +188,16 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // Sun Object (Visual)
-const sunGeometry = new THREE.SphereGeometry(2, 32, 32); // Slightly larger sun
-const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00, fog: false });
+const sunGeometry = new THREE.SphereGeometry(2, 32, 32);
+// const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00, fog: false }); // REMOVED
+const sunMaterial = new THREE.MeshStandardMaterial({ // CHANGED to StandardMaterial
+    emissive: 0xFFFF00,    // Make it glow yellow
+    emissiveIntensity: 2, // Adjust intensity as needed
+    color: 0xFFFF00,       // Base color (can be same as emissive)
+    fog: false,            // Still ignore fog
+    roughness: 0,          // Make it appear smooth
+    metalness: 0
+});
 const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
 sunMesh.position.copy(dirLight.position).normalize().multiplyScalar(100); // Place far away in light direction
 scene.add(sunMesh);
@@ -230,17 +238,6 @@ function setupTree(treeObject) {
     treeObject.scale.set(2, 2, 2);
     treeObject.position.set(-15, 0, 4); // Place tree base at y=0
 
-    // Find the ground height at the tree's X/Z position // REMOVED - assuming flat ground at y=0
-    // const raycaster = new THREE.Raycaster();
-    // raycaster.set(new THREE.Vector3(treeObject.position.x, 10, treeObject.position.z), new THREE.Vector3(0, -1, 0));
-    // const intersects = raycaster.intersectObject(ground);
-    // if (intersects.length > 0) {
-    //     treeObject.position.y = intersects[0].point.y;
-    // } else {
-    //     console.warn("Could not find ground height for tree, using default Y.");
-    //     treeObject.position.y = -1; // This was the old default, now it's 0
-    // }
-
     treeObject.traverse(function (child) {
         if (child.isMesh) {
             child.castShadow = true;
@@ -249,6 +246,40 @@ function setupTree(treeObject) {
     });
     
     scene.add(treeObject);
+
+    // --- Add Fallen Petals --- ADDED
+    const petalCount = 200;
+    const petalSpreadRadius = 6; // How far petals spread from the trunk
+    const petalGeometry = new THREE.PlaneGeometry(0.1, 0.1); // Small plane for petal
+    const petalMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFFB6C1, // LightPink 
+        side: THREE.DoubleSide,
+        transparent: true, // Make slightly transparent if desired
+        opacity: 0.9
+    });
+
+    for (let i = 0; i < petalCount; i++) {
+        const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+
+        // Random position around the tree base
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * petalSpreadRadius;
+        const petalX = treeObject.position.x + Math.cos(angle) * radius;
+        const petalZ = treeObject.position.z + Math.sin(angle) * radius;
+        const petalY = 0.01; // Slightly above ground to prevent z-fighting
+
+        petal.position.set(petalX, petalY, petalZ);
+
+        // Random rotation
+        petal.rotation.x = -Math.PI / 2; // Lay flat on ground initially
+        petal.rotation.y = Math.random() * Math.PI * 2; // Random orientation on ground
+        petal.rotation.z = Math.random() * 0.5 - 0.25; // Slight tilt
+        
+        petal.receiveShadow = true; // Petals can receive shadows (optional)
+        scene.add(petal);
+    }
+    // --- End Fallen Petals ---
+
     // REMOVED: camera.lookAt(treeObject.position); -- we're setting this at the start now
 }
 
@@ -274,13 +305,13 @@ const cloudMaterial = new THREE.MeshBasicMaterial({
     side: THREE.DoubleSide
 });
 
-const numClouds = 15;
+const numClouds = 35; // INCREASED number of clouds
 for (let i = 0; i < numClouds; i++) {
     const cloudGeometry = new THREE.PlaneGeometry(10 + Math.random() * 10, 5 + Math.random() * 5); // Random size
     const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
 
     cloud.position.x = -100 + Math.random() * 200; // Spread across X
-    cloud.position.y = 15 + Math.random() * 10;  // Height variation
+    cloud.position.y = 25 + Math.random() * 15;  // RAISED height variation (25-40)
     cloud.position.z = -50 + Math.random() * 100; // Depth variation
 
     cloud.rotation.y = Math.random() * Math.PI; // Slight random rotation

@@ -116,6 +116,8 @@ let clouds = []; // Array to hold cloud meshes
 let fallenPetals = []; // ADDED: Array for animating petals
 let simpleFlowers = []; // ADDED: Array for flowers
 let bushes = []; // ADDED: Array for bushes
+let distantTrees = []; // ADDED: Array for distant trees
+let rocks = []; // ADDED: Array for rocks
 
 // Get reference to HTML message element // REMOVED
 // const messageElement = document.getElementById('message');
@@ -404,6 +406,101 @@ for (let i = 0; i < bushCount; i++) {
     bushes.push(bush);
 }
 // --- End Bushes ---
+
+// --- Distant Low-Poly Trees --- ADDED Section
+const distantTreeCount = 30;
+const treeSpreadMin = 40; // Start placing trees further out
+const treeSpreadMax = 70; // Max distance for trees
+const treeTrunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2.5, 6); // Thinner trunk
+const treeTrunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.9 });
+const treeFoliageGeometry = new THREE.IcosahedronGeometry(1.0, 0); // Low-poly look
+const treeFoliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.8 }); // Forest Green
+
+function createDistantTree() {
+    const treeGroup = new THREE.Group();
+    
+    // Trunk
+    const trunk = new THREE.Mesh(treeTrunkGeometry, treeTrunkMaterial);
+    trunk.position.y = 1.25; // Half height
+    trunk.castShadow = true;
+    treeGroup.add(trunk);
+
+    // Foliage (multiple parts for better shape)
+    const foliage1 = new THREE.Mesh(treeFoliageGeometry, treeFoliageMaterial);
+    foliage1.position.y = 3.0;
+    foliage1.scale.set(1.2, 1.5, 1.2);
+    foliage1.castShadow = true;
+    treeGroup.add(foliage1);
+
+    const foliage2 = new THREE.Mesh(treeFoliageGeometry, treeFoliageMaterial);
+    foliage2.position.set(0.3, 2.2, 0.2);
+    foliage2.scale.set(1.0, 1.2, 1.0);
+    foliage2.castShadow = true;
+    treeGroup.add(foliage2);
+
+    const foliage3 = new THREE.Mesh(treeFoliageGeometry, treeFoliageMaterial);
+    foliage3.position.set(-0.3, 2.0, -0.3);
+    foliage3.scale.set(0.9, 1.0, 0.9);
+    foliage3.castShadow = true;
+    treeGroup.add(foliage3);
+
+    return treeGroup;
+}
+
+for (let i = 0; i < distantTreeCount; i++) {
+    const tree = createDistantTree();
+    
+    const angle = Math.random() * Math.PI * 2;
+    const radius = treeSpreadMin + Math.random() * (treeSpreadMax - treeSpreadMin);
+    const treeX = Math.cos(angle) * radius;
+    const treeZ = Math.sin(angle) * radius;
+    const treeY = 0;
+
+    tree.position.set(treeX, treeY, treeZ);
+    tree.rotation.y = Math.random() * Math.PI * 2;
+    tree.scale.setScalar(0.8 + Math.random() * 0.4); // Random size variation
+    
+    scene.add(tree);
+    distantTrees.push(tree);
+}
+// --- End Distant Trees ---
+
+// --- Rocks --- ADDED Section
+const rockCount = 25;
+const rockSpreadMin = 15; // Start rocks further than petals/flowers
+const rockSpreadMax = 60;
+const rockGeometry = new THREE.DodecahedronGeometry(0.5, 0); // 12-sided shape
+const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.1 }); // Grey
+
+for (let i = 0; i < rockCount; i++) {
+    const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+    
+    const angle = Math.random() * Math.PI * 2;
+    const radius = rockSpreadMin + Math.random() * (rockSpreadMax - rockSpreadMin);
+    const rockX = Math.cos(angle) * radius;
+    const rockZ = Math.sin(angle) * radius;
+    const rockY = 0.1;
+
+    rock.position.set(rockX, rockY, rockZ);
+    
+    // Random rotation and scale
+    rock.rotation.set(
+        Math.random() * Math.PI,
+        Math.random() * Math.PI,
+        Math.random() * Math.PI
+    );
+    rock.scale.set(
+        0.5 + Math.random() * 0.8,
+        0.5 + Math.random() * 0.8,
+        0.5 + Math.random() * 0.8
+    );
+
+    rock.castShadow = true;
+    rock.receiveShadow = true;
+    scene.add(rock);
+    rocks.push(rock);
+}
+// --- End Rocks ---
 
 // --- Clouds ---
 // Load cloud texture from file
